@@ -24,3 +24,9 @@ Este proyecto busca desarrollar un modelo predictivo que cuantifique la influenc
 - Vicente Rodríguez
 - Bastián Pérez
 - Thomas Johnson
+
+## Advertencia: Proceso de Adquisición de Datos
+
+Actualmente, la API de la CNE está en mantención y no se ha localizado un enlace de descarga directa estable para los datos de consumo. Como medida de contingencia temporal, el archivo `consumo_electrico_cne_2024.xlsx` ha sido descargado manualmente y ubicado en `data/raw/`.
+
+**Esta es una solución temporal y no reproducible.** La automatización de este paso es prioritaria una vez que la API esté disponible.
