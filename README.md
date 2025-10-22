@@ -7,64 +7,58 @@ Este proyecto busca desarrollar un modelo predictivo que cuantifique la influenc
 
 ## Estado Actual del Proyecto (Octubre 2025)
 
-El proyecto ha completado la fase inicial de Adquisición, Limpieza y Exploración de Datos (EDA). Se ha construido un dataset unificado que combina datos de consumo energético (CNE) y datos climáticos (DMC). Se han establecido modelos de regresión base que demuestran la importancia de las variables geográficas (`comuna`) y la insuficiencia de usar solo variables de tiempo.
+Se ha completado la fase de **Adquisición, Limpieza, Combinación y Análisis Exploratorio de Datos (EDA)**. Se ha construido un dataset unificado (`dataset_final_energia_clima_socio.csv` en `data/processed/`) que integra:
+* Datos de consumo energético de la CNE.
+* Datos meteorológicos (temperatura media, máxima y mínima mensual) de la DMC.
+* Datos socioeconómicos (Índice de Pobreza Multidimensional) del INE/MDS.
 
-## Fuentes de Datos
+El análisis exploratorio inicial confirma una fuerte estacionalidad en el consumo (correlacionada con la temperatura) y diferencias significativas entre comunas. Se identificaron y eliminaron datos anómalos/corruptos.
+
+## Fuentes de Datos Utilizadas
 
 1.  **Consumo Energético (CNE):**
     * **Fuente:** Comisión Nacional de Energía (CNE), Plataforma Energía Abierta.
-    * **Estado:** La API oficial se encontraba en mantención. Se recurrió a una descarga manual controlada del archivo de consumo eléctrico (`consumo_electrico_cne_2024.xlsx`).
+    * **Método:** Descarga manual controlada (`consumo_electrico_cne_2024.xlsx` en `data/raw/`) debido a API en mantención.
 
 2.  **Datos Climáticos (DMC):**
     * **Fuente:** Dirección Meteorológica de Chile (DMC), portal climatológico.
-    * **Estado:** La API de OpenWeatherMap (propuesta original) no autorizó el acceso a datos históricos. Se pivotó a la fuente oficial de Chile, descargando programáticamente los registros diarios de temperatura media de la estación "Quinta Normal" (2015-2025).
+    * **Método:** Descarga manual de archivos CSV anuales (`330020_*.csv` en `data/raw/`) para la estación "Quinta Normal" (2015-2025), consolidados y procesados programáticamente. Se pivotó desde OpenWeatherMap (API gratuita sin acceso histórico).
 
-3.  **Datos Socioeconómicos (Pendiente):**
-    * **Fuente:** Instituto Nacional de Estadísticas (INE) o Ministerio de Desarrollo Social.
-    * **Estado:** Pendiente de adquisición.
+3.  **Datos Socioeconómicos (INE/MDS):**
+    * **Fuente:** Instituto Nacional de Estadísticas (INE) o Ministerio de Desarrollo Social (MDS).
+    * **Método:** Descarga manual de archivo (`datos_socioeconomicos.csv` en `data/raw/`) con datos comunales anuales (ej. Índice de Pobreza).
 
-## Pipeline de Procesamiento (Resumen)
+## Pipeline de Procesamiento (Resumen en `notebooks/Limpieza_y_EDA.ipynb`)
 
-El notebook `notebooks/2_Limpieza_y_EDA.ipynb` ejecuta el siguiente pipeline:
+1.  **Carga y Limpieza CNE:** Lee `.xlsx`, maneja formato "CSV dentro de Excel", convierte tipos, imputa NaNs con 0.
+2.  **Filtrado CNE:** Selecciona solo 'Región Metropolitana de Santiago', crea columna `fecha`, elimina datos anómalos (Nov-Dic 2022).
+3.  **Carga y Limpieza DMC:** Consolida CSVs anuales, limpia nombres, convierte tipos, elimina datos futuros.
+4.  **Agregación DMC:** Calcula promedios diarios y luego mensuales para `temperatura_promedio_c`, `temperatura_maxima_c`, `temperatura_minima_c`. Rellena NaNs.
+5.  **Carga y Limpieza Socioeconómico:** Lee `.csv`, renombra columnas, limpia nombres de comuna para merge, convierte variable socioeconómica (ej. `indice_pobreza_pct`) a numérica.
+6.  **Fusión Final:** Une los DataFrames de energía (limpio y filtrado), clima (mensual) y socioeconómico (anual) usando `fecha` y `anio`/`comuna` como claves. Rellena NaNs post-fusión.
+7.  **Ingeniería de Características:** Crea variables temporales (`trimestre`, `inicio_mes`).
+8.  **EDA Combinado:** Visualiza tendencias, matriz de correlación, scatter plots (consumo vs. temp, consumo vs. pobreza).
+9.  **Guardado:** Exporta el DataFrame final procesado a `data/processed/dataset_final_energia_clima_socio.csv`.
 
-1.  **Carga y Limpieza (Energía):**
-    * Detecta que el archivo `.xlsx` de la CNE es un "CSV dentro de un Excel".
-    * Divide la única columna usando `;` como separador.
-    * Convierte columnas a tipos numéricos (`energia_kwh`, etc.) e imputa valores nulos (`NaN`) con `0`.
-2.  **Filtrado (Energía):**
-    * Filtra el dataset para mantener únicamente las filas de la **'RegiÃ³n Metropolitana de Santiago'**.
-    * Identifica y **elimina los datos anómalos** (Nov/Dic 2022) por considerarse corruptos.
-3.  **Carga y Agregación (Clima):**
-    * Consolida programáticamente todos los CSV de temperatura de la DMC.
-    * Agrega los datos de temperatura diarios para obtener el **promedio mensual**.
-4.  **Fusión Final:** Une el DataFrame de consumo de energía con el de temperatura promedio mensual usando la `fecha` como clave.
+## Próximos Pasos (en `notebooks/3_Modelado_y_Evaluacion.ipynb`)
 
-## Resultados Preliminares: Modelos Base
-
-Se establecieron modelos de Regresión Lineal para medir el impacto de las variables:
-
-1.  **Modelo 1 (Tiempo):** `energia_kwh ~ anio + mes + trimestre`
-    * **R²: 0.00**
-    * **Conclusión:** El tiempo por sí solo no tiene poder predictivo.
-
-2.  **Modelo 2 (Tiempo + Ubicación):** `energia_kwh ~ anio + mes + comuna (One-Hot Encoded)`
-    * **R²: 0.10**
-    * **Conclusión:** La ubicación (`comuna`) es un factor crítico y explica el 10% de la varianza del consumo.
-
-## Próximos Pasos
-
-1.  **Re-entrenar:** Entrenar un modelo de Regresión Lineal que incluya las variables climáticas (`temperatura_promedio_c`) para cuantificar su impacto en el R².
-2.  **Enriquecimiento (Socioeconómico):** Adquirir y fusionar los datos de ingreso o pobreza por comuna del INE.
-3.  **Modelado Avanzado:** Entrenar un modelo `RandomForestRegressor` con el dataset completo (energía + clima + socioeconómico) para capturar relaciones no lineales y comparar su rendimiento.
+1.  **Cargar Dataset Final:** Leer `dataset_final_energia_clima_socio.csv`.
+2.  **Preparar Datos para Modelado:** Seleccionar características finales, aplicar One-Hot Encoding a `comuna`.
+3.  **Entrenar Modelo Base:** Implementar y evaluar Regresión Lineal Múltiple.
+4.  **Entrenar Modelo Avanzado:** Implementar y evaluar `RandomForestRegressor`.
+5.  **Comparar y Analizar:** Evaluar métricas (R², MSE), analizar importancia de características y errores del modelo.
+6.  **Iterar:** Refinar características, probar otros modelos (ej. Gradient Boosting), optimizar hiperparámetros.
 
 ## Estructura del Repositorio
 
 -   **/data**: Almacena todos los datos (excluidos por `.gitignore`).
-    -   **/data/raw**: Datos originales, sin procesar.
-    -   **/data/processed**: Datos limpios y combinados.
--   **/notebooks**: Contiene los Jupyter Notebooks para la exploración y modelado.
--   **/src**: Contiene el código fuente modularizado.
--   **/reports**: Contiene los entregables finales.
+    -   **/data/raw**: Datos originales descargados.
+    -   **/data/processed**: Datasets limpios y combinados listos para modelar.
+-   **/notebooks**: Contiene los Jupyter Notebooks.
+    -   `Limpieza_y_EDA.ipynb`: Carga, limpieza, fusión y EDA.
+    -   `3_Modelado_y_Evaluacion.ipynb`: Entrenamiento y evaluación de modelos.
+-   **/src**: Código fuente modularizado (ej. `data_collection.py`, aunque actualmente no se usa para descarga automática).
+-   **/reports**: Entregables finales (figuras, informe).
 -   `requirements.txt`: Dependencias del proyecto.
 
 ## Autores
@@ -72,3 +66,7 @@ Se establecieron modelos de Regresión Lineal para medir el impacto de las varia
 -   Vicente Rodríguez
 -   Bastián Pérez
 -   Thomas Johnson
+
+## Advertencia: Proceso de Adquisición de Datos
+
+Las fuentes de datos CNE y DMC requirieron descargas manuales debido a limitaciones de las APIs o portales. Esto introduce una dependencia manual en la reproducibilidad inicial. El pipeline de procesamiento *a partir* de los archivos descargados es programático y está contenido en los notebooks.
