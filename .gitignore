@@ -34,8 +34,7 @@ venv.bak/
 
 # Data files
 # Los datos no deben estar en el control de versiones.
-data/raw/*
-data/processed/*
+data/*
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
