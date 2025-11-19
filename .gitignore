@@ -34,7 +34,17 @@ venv.bak/
 
 # Data files
 # Los datos no deben estar en el control de versiones.
-data/*
+data/raw/
+data/interim/
+data/processed/
+*.sav
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.env
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
