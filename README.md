@@ -55,7 +55,7 @@ Este modelo se construye sobre una serie de supuestos simplificadores necesarios
 
 ### 2\. Clima (`02_Clima`)
 
-  * **Fuente:** Dirección Meteorológica de Chile (DMC). ([https://climatologia.meteochile.gob.cl/application/informacion/fichaDeEstacion/330020])
+  * **Fuente:** Dirección Meteorológica de Chile (DMC). ([https://climatologia.meteochile.gob.cl/application/historico/datosDescarga/330020])
   * **Proceso:** Ingesta de registros horarios, imputación de vacíos leves y cálculo diario de temperatura.
   * **Feature Engineering:** Cálculo de **Heating Degree Days (HDD)** (Base 15°C) y **Cooling Degree Days (CDD)** (Base 24°C) antes de la agregación mensual.
 
