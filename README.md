@@ -1,72 +1,135 @@
-# Optimización del Consumo Energético Residencial en la Región Metropolitana
+# ⚡ Predicción de Consumo Eléctrico Residencial en la Región Metropolitana
 
-Este proyecto busca desarrollar un modelo predictivo que cuantifique la influencia de factores socioeconómicos y climáticos en el consumo energético residencial en la Región Metropolitana de Chile. El objetivo final es informar políticas públicas y estrategias de eficiencia que permitan una reducción del gasto energético.
+Este proyecto implementa un pipeline de Ciencia de Datos *end-to-end* para predecir el consumo eléctrico mensual a nivel comunal. Integra fuentes heterogéneas (energía, clima y datos socioeconómicos) para entrenar modelos de Machine Learning capaces de capturar estacionalidad, tendencias económicas y comportamiento térmico.
 
-## Pregunta Central
-¿Cómo podemos reducir el consumo energético residencial en un 5-10% identificando los factores más influyentes a través del análisis de datos?
+## 📂 Estructura del Proyecto
 
-## Estado Actual del Proyecto (Octubre 2025)
+El proyecto sigue una arquitectura modular y secuencial para garantizar la reproducibilidad:
 
-Se ha completado la fase de **Adquisición, Limpieza, Combinación y Análisis Exploratorio de Datos (EDA)**. Se ha construido un dataset unificado (`dataset_final_energia_clima_socio.csv` en `data/processed/`) que integra:
-* Datos de consumo energético de la CNE.
-* Datos meteorológicos (temperatura media, máxima y mínima mensual) de la DMC.
-* Datos socioeconómicos (Índice de Pobreza Multidimensional) del INE/MDS.
+```
+├── data/
+│   ├── raw/                # Datos crudos (Excel, SAV, CSV)
+│   └── processed/          # Datos limpios y Master Table final
+├── notebooks/
+│   ├── 01_Data_Collection_Consumo_Energetico.ipynb  # Ingesta CNE
+│   ├── 02_Data_Collection_Meteorologica.ipynb       # Ingesta DMC + Cálculo HDD/CDD
+│   ├── 03_Data_Collection_Socioeconomica.ipynb      # Ingesta CASEN + Interpolación
+│   ├── 04_Limpieza_y_EDA.ipynb                      # Merge, Ingeniería de Features y Análisis
+│   └── 05_Modelamiento_Predictivo.ipynb             # Entrenamiento y Evaluación (XGBoost)
+├── requirements.txt        # Dependencias del proyecto
+└── README.md               # Documentación principal
+```
 
-El análisis exploratorio inicial confirma una fuerte estacionalidad en el consumo (correlacionada con la temperatura) y diferencias significativas entre comunas. Se identificaron y eliminaron datos anómalos/corruptos.
+-----
 
-## Fuentes de Datos Utilizadas
+## 🧠 Supuestos Críticos y Decisiones de Diseño
 
-1.  **Consumo Energético (CNE):**
-    * **Fuente:** Comisión Nacional de Energía (CNE), Plataforma Energía Abierta.
-    * **Método:** Descarga manual controlada (`consumo_electrico_cne_2024.xlsx` en `data/raw/`) debido a API en mantención.
+Este modelo se construye sobre una serie de supuestos simplificadores necesarios para alinear fuentes de datos con frecuencias y granularidades dispares. **Es crucial entender estas premisas para interpretar correctamente los resultados:**
 
-2.  **Datos Climáticos (DMC):**
-    * **Fuente:** Dirección Meteorológica de Chile (DMC), portal climatológico.
-    * **Método:** Descarga manual de archivos CSV anuales (`330020_*.csv` en `data/raw/`) para la estación "Quinta Normal" (2015-2025), consolidados y procesados programáticamente. Se pivotó desde OpenWeatherMap (API gratuita sin acceso histórico).
+### 1\. Supuestos de Alineación Temporal (Frequency Mismatch)
 
-3.  **Datos Socioeconómicos (INE/MDS):**
-    * **Fuente:** Instituto Nacional de Estadísticas (INE) o Ministerio de Desarrollo Social (MDS).
-    * **Método:** Descarga manual de archivo (`datos_socioeconomicos.csv` en `data/raw/`) con datos comunales anuales (ej. Índice de Pobreza).
+  * **La "Verdad" es Mensual:** Dado que la variable objetivo (facturación de energía) es mensual, todas las demás variables se han forzado a esta frecuencia. No se intenta predecir consumo diario.
+  * **Estabilidad Socioeconómica Intra-anual:** Se asume que el nivel de ingresos y la tasa de pobreza de una comuna se mantienen **constantes durante los 12 meses de un mismo año**. El modelo no captura shocks económicos mensuales (ej: un bono del gobierno en un mes específico).
+  * **Agregación Climática no Lineal:** Se asume que el promedio simple de temperatura mensual *destruye* información valiosa. Por ello, se utilizan **Grados-Día (HDD/CDD)** acumulados mensualmente para capturar la *intensidad* del frío o calor diario que detona el uso de calefacción o aire acondicionado.
 
-## Pipeline de Procesamiento (Resumen en `notebooks/Limpieza_y_EDA.ipynb`)
+### 2\. Supuestos de Imputación y Proyección (Notebook 03)
 
-1.  **Carga y Limpieza CNE:** Lee `.xlsx`, maneja formato "CSV dentro de Excel", convierte tipos, imputa NaNs con 0.
-2.  **Filtrado CNE:** Selecciona solo 'Región Metropolitana de Santiago', crea columna `fecha`, elimina datos anómalos (Nov-Dic 2022).
-3.  **Carga y Limpieza DMC:** Consolida CSVs anuales, limpia nombres, convierte tipos, elimina datos futuros.
-4.  **Agregación DMC:** Calcula promedios diarios y luego mensuales para `temperatura_promedio_c`, `temperatura_maxima_c`, `temperatura_minima_c`. Rellena NaNs.
-5.  **Carga y Limpieza Socioeconómico:** Lee `.csv`, renombra columnas, limpia nombres de comuna para merge, convierte variable socioeconómica (ej. `indice_pobreza_pct`) a numérica.
-6.  **Fusión Final:** Une los DataFrames de energía (limpio y filtrado), clima (mensual) y socioeconómico (anual) usando `fecha` y `anio`/`comuna` como claves. Rellena NaNs post-fusión.
-7.  **Ingeniería de Características:** Crea variables temporales (`trimestre`, `inicio_mes`).
-8.  **EDA Combinado:** Visualiza tendencias, matriz de correlación, scatter plots (consumo vs. temp, consumo vs. pobreza).
-9.  **Guardado:** Exporta el DataFrame final procesado a `data/processed/dataset_final_energia_clima_socio.csv`.
+  * **Linealidad entre Encuestas CASEN:** Para los años sin encuesta (ej: 2016, 2018-2019), se asume una **evolución lineal** entre los puntos de datos reales (2015, 2017, 2020, 2022). Esto ignora fluctuaciones económicas de corto plazo.
+  * **Inercia Futura (Forward Fill):** Para los años posteriores a la última CASEN disponible (2023-2025), se asume que las condiciones socioeconómicas se mantienen estables en el último valor conocido (2022). El modelo *no* predice cambios macroeconómicos futuros.
+  * **Impacto Pandémico (2020):** Se asume que la caída/aumento de ingresos capturada en la CASEN 2020 refleja adecuadamente el shock del COVID-19 para efectos de consumo eléctrico, sin necesidad de variables dummy externas.
 
-## Próximos Pasos (en `notebooks/3_Modelado_y_Evaluacion.ipynb`)
+### 3\. Supuestos Geoespaciales
 
-1.  **Cargar Dataset Final:** Leer `dataset_final_energia_clima_socio.csv`.
-2.  **Preparar Datos para Modelado:** Seleccionar características finales, aplicar One-Hot Encoding a `comuna`.
-3.  **Entrenar Modelo Base:** Implementar y evaluar Regresión Lineal Múltiple.
-4.  **Entrenar Modelo Avanzado:** Implementar y evaluar `RandomForestRegressor`.
-5.  **Comparar y Analizar:** Evaluar métricas (R², MSE), analizar importancia de características y errores del modelo.
-6.  **Iterar:** Refinar características, probar otros modelos (ej. Gradient Boosting), optimizar hiperparámetros.
+  * **Homogeneidad Climática Regional:** Se utiliza una estación meteorológica representativa (Quinta Normal) para toda la Región Metropolitana. Se asume que las variaciones microclimáticas entre comunas (ej: Lo Barnechea vs. Pudahuel) son marginales para el consumo agregado o se cancelan en el promedio mensual.
+  * **Normalización de Comunas:** Se asume que las discrepancias en nombres ("Santiago" vs "Santiago Centro") se resuelven completamente mediante normalización de texto (NFKD, lowercase), sin pérdida de datos por descalce de llaves.
 
-## Estructura del Repositorio
+-----
 
--   **/data**: Almacena todos los datos (excluidos por `.gitignore`).
-    -   **/data/raw**: Datos originales descargados.
-    -   **/data/processed**: Datasets limpios y combinados listos para modelar.
--   **/notebooks**: Contiene los Jupyter Notebooks.
-    -   `Limpieza_y_EDA.ipynb`: Carga, limpieza, fusión y EDA.
-    -   `3_Modelado_y_Evaluacion.ipynb`: Entrenamiento y evaluación de modelos.
--   **/src**: Código fuente modularizado (ej. `data_collection.py`, aunque actualmente no se usa para descarga automática).
--   **/reports**: Entregables finales (figuras, informe).
--   `requirements.txt`: Dependencias del proyecto.
+## 🛠️ Pipeline de Datos
 
-## Autores
+### 1\. Energía (`01_Energia`)
 
--   Vicente Rodríguez
--   Bastián Pérez
--   Thomas Johnson
+  * **Fuente:** Comisión Nacional de Energía (CNE). ([http://energiaabierta.cl/categorias-estadistica/electricidad/])
+  * **Proceso:** Normalización de nombres de comunas, conversión de fechas y filtrado por cliente residencial/comercial.
+  * **Clave:** Genera la columna target `energia_kwh`.
 
-## Advertencia: Proceso de Adquisición de Datos
+### 2\. Clima (`02_Clima`)
 
-Las fuentes de datos CNE y DMC requirieron descargas manuales debido a limitaciones de las APIs o portales. Esto introduce una dependencia manual en la reproducibilidad inicial. El pipeline de procesamiento *a partir* de los archivos descargados es programático y está contenido en los notebooks.
+  * **Fuente:** Dirección Meteorológica de Chile (DMC). ([https://climatologia.meteochile.gob.cl/application/informacion/fichaDeEstacion/330020])
+  * **Proceso:** Ingesta de registros horarios, imputación de vacíos leves y cálculo diario de temperatura.
+  * **Feature Engineering:** Cálculo de **Heating Degree Days (HDD)** (Base 15°C) y **Cooling Degree Days (CDD)** (Base 24°C) antes de la agregación mensual.
+
+### 3\. Socioeconómico (`03_Socio`)
+
+  * **Fuente:** Encuesta CASEN (MDSF). ([https://observatorio.ministeriodesarrollosocial.gob.cl/encuesta-casen-2022])
+  * **Proceso:** Fusión compleja de múltiples archivos (Datos + Códigos Geográficos + Diccionario Excel) para reconstruir la historia de cada comuna.
+  * **Proyección:** Interpolación lineal para rellenar lagunas temporales.
+
+### 4\. Consolidación (`04_Merge_EDA`)
+
+  * **Proceso:** Unificación de las 3 ramas mediante `Left Joins` estratégicos para no perder datos de facturación.
+  * **Limpieza:** Eliminación de columnas redundantes y manejo final de nulos.
+  * **EDA:** Análisis de correlación (Clima vs Consumo) y estacionalidad.
+
+### 5\. Modelado (`05_Modeling`)
+
+  * **Modelo:** XGBoost Regressor / Random Forest.
+  * **Validación:** Split temporal estricto (Train: \<2023, Test: \>=2023) para evitar *data leakage*.
+  * **Métricas:** MAE (Error Absoluto Medio) y R² (Coeficiente de Determinación).
+
+-----
+
+## 🚀 Instalación y Ejecución
+
+1.  **Clonar el repositorio:**
+
+    ```bash
+    git clone [https://github.com/tu-usuario/imt2200-proyecto.git](https://github.com/tu-usuario/imt2200-proyecto.git)
+    cd imt2200-proyecto
+    ```
+
+2.  **Instalar dependencias:**
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3.  **Ejecutar Pipeline:**
+    Ejecutar los notebooks en orden secuencial del `01` al `05`.
+
+-----
+
+## 📊 Resultados Esperados
+
+El modelo final permite estimar la demanda energética futura a nivel comunal, permitiendo a las distribuidoras:
+
+  * Planificar compras de energía con mayor precisión.
+  * Identificar comunas con alta sensibilidad térmica (pobreza energética).
+  * Detectar anomalías de consumo no explicadas por el clima o la economía.
+
+-----
+
+**Integrantes:** Thomas Johnson, Bastián Pérez y Vicente Rodríguez
+**Curso:** IMT2200 - Introducción a la Ciencia de Datos
+**Fecha:** Noviembre 2025
+
+-----
+
+## ⚠️ Advertencia Crítica sobre Adquisición e Ingeniería de Datos
+
+Este proyecto **no utiliza datos crudos directos** para el entrenamiento del modelo. Se ha implementado un pipeline de ingeniería de datos agresivo para alinear fuentes con frecuencias temporales incompatibles. 
+
+Cualquier uso de este dataset (`master_table.csv`) o de los modelos resultantes debe considerar los siguientes **supuestos y fabricaciones controladas**:
+
+### 1. Datos Socioeconómicos (CASEN) - Interpolación y Proyección
+* **La realidad no es continua:** Las encuestas CASEN son fotos puntuales (2015, 2017, 2020, 2022). Para el modelado mensual, **se han "inventado" los datos de los años intermedios** (2016, 2018, 2019, 2021) mediante interpolación lineal.
+* **Congelamiento del Presente:** Para el periodo 2023-2025, ante la falta de datos oficiales publicados al momento del estudio, se ha utilizado una estrategia de **Forward Fill** (inercia), asumiendo que las condiciones de ingresos y pobreza de 2022 se mantienen estáticas. El modelo no captura shocks económicos recientes post-2022.
+
+### 2. Datos Climáticos (DMC) - Compresión de Varianza
+* **Proxy Regional:** Se utiliza la estación de Quinta Normal como proxy climático para **toda la Región Metropolitana**. No se consideran microclimas locales (ej: la diferencia térmica entre Pudahuel y Lo Barnechea), lo que introduce un margen de error en comunas precordilleranas.
+* **Pérdida de Resolución:** Al agregar los datos diarios a mensuales mediante **Grados-Día (HDD/CDD)**, se suavizan los eventos extremos de corta duración (olas de calor de 2 días) que podrían haber generado picos de consumo momentáneos.
+
+### 3. Datos Energéticos (CNE) - Desfase de Facturación
+* **Supuesto de Calendario:** Se asume que la "energía facturada" en un mes corresponde exactamente al consumo de ese mes calendario. En la realidad operativa, las lecturas de medidores tienen desfases y ciclos de facturación que pueden no coincidir perfectamente con el inicio y fin de mes, introduciendo un ruido residual en la variable objetivo.
+
+**Conclusión:** Este dataset está optimizado para capturar **tendencias macro y estacionalidad**, no para auditoría forense de consumo exacto.

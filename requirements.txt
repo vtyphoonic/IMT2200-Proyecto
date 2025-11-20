@@ -1,16 +1,10 @@
-# Data Manipulation
 pandas
 numpy
-
-# Data Visualization
 matplotlib
 seaborn
-
-# Machine Learning
+pyreadstat
 scikit-learn
-
-# API Interaction
 requests
-
-# Notebook Environment
+xgboost
+openpyxl
 jupyter
