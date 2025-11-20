@@ -109,9 +109,9 @@ El modelo final permite estimar la demanda energética futura a nivel comunal, p
 
 -----
 
-**Integrantes:** Thomas Johnson, Bastián Pérez y Vicente Rodríguez
-**Curso:** IMT2200 - Introducción a la Ciencia de Datos
-**Fecha:** Noviembre 2025
+* **Integrantes:** Thomas Johnson, Bastián Pérez y Vicente Rodríguez
+* **Curso:** IMT2200 - Introducción a la Ciencia de Datos
+* **Fecha:** Noviembre 2025
 
 -----
 
