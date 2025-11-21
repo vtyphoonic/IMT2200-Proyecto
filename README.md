@@ -159,10 +159,6 @@ Los resultados no deben utilizarse para juzgar el comportamiento de un hogar esp
 
 A pesar del "fallo" en las métricas globales (causado por el ruido industrial), **sí se lograron responder las 5 preguntas**, aunque con ciertos matices y adaptaciones estratégicas.
 
-En ciencia de datos, identificar que una métrica global está sucia y encontrar la métrica real del segmento objetivo (el MAE de 13 kWh para hogares) **cuenta como una respuesta exitosa y validada**.
-
-Aquí tienes el desglose de cómo defendemos cada respuesta basándonos en tu evidencia:
-
 ### 1. Tendencia Estacional y Climática
 > *¿Cuál es la tendencia estacional... y relación con temperatura?*
 * **Respuesta:** ✅ **Sí, totalmente respondida.**
@@ -186,7 +182,7 @@ Aquí tienes el desglose de cómo defendemos cada respuesta basándonos en tu ev
 ### 5. Predicción y Margen de Error (La del "Fallo")
 > *¿Qué tan bien puede predecir... y qué margen de error se puede esperar?*
 * **Respuesta:** ✅ **Sí, respondida (con la distinción clave).**
-* **Evidencia:** Aquí es donde entra tu defensa.
+* **Evidencia:**
     * **Respuesta Global:** El modelo tiene dificultades con clientes industriales (error alto).
     * **Respuesta Residencial (Objetivo):** Para un hogar común, el modelo predice con un error de **±13.8 kWh (6.6%)**, lo cual responde positivamente a la pregunta de si es útil para informar decisiones de política pública.
     * **Accionabilidad:** El análisis de residuos confirmó que la meta de ahorro del 5-10% es viable si se corrigen las ineficiencias detectadas.
